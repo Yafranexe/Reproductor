@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor de Imágenes</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <div class="image-container">
+        <!-- Aquí puedes agregar tus imágenes -->
+        <img src="https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502579/Pantallas%20PDV/COS007_bchpfq.jpg" alt="Imagen">
+        <button id="fullscreenButton">Haz clic para pantalla completa</button>
+    </div>
+
+    <script>
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        
+        // Función para entrar en pantalla completa
+        function enterFullscreen() {
+            const element = document.documentElement;
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) { // Safari
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) { // IE11
+                element.msRequestFullscreen();
+            }
+        }
+
+        // Función para salir de pantalla completa
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) { // Safari
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE11
+                document.msExitFullscreen();
+            }
+        }
+
+        // Manejar el clic del botón
+        fullscreenButton.addEventListener('click', () => {
+            enterFullscreen();
+            fullscreenButton.classList.add('hidden');
+        });
+        
+
+        // Manejar cambios en el estado de pantalla completa
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                fullscreenButton.classList.remove('hidden');
+            }
+        });
+
+        // Intentar entrar en pantalla completa después de un clic en cualquier parte de la página
+        document.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                enterFullscreen();
+                fullscreenButton.classList.add('hidden');
+            }
+        }, { once: true }); // El evento solo se ejecutará una vez
+    </script>
+</body>
+</html>
