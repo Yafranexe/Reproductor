@@ -4,8 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reproductor de Imágenes</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .image-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #fullscreenButton {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid white;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        }
+
+        #fullscreenButton:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
 </head>
 <body>
     <div class="image-container">
@@ -17,10 +76,20 @@
     <script>
         const fullscreenButton = document.getElementById('fullscreenButton');
         
-        // Función mejorada para entrar en pantalla completa
+        // Función específica para Samsung/Tizen
         function enterFullscreen() {
             const element = document.documentElement;
             
+            // Método específico para Samsung
+            try {
+                if (window.webapis && window.webapis.avplay) {
+                    // Intentar usar la API de Samsung
+                    window.webapis.avplay.setDisplayRect(0, 0, screen.width, screen.height);
+                }
+            } catch (e) {
+                console.log('Samsung API no disponible');
+            }
+
             // Intentar todos los métodos posibles de pantalla completa
             if (element.requestFullscreen) {
                 element.requestFullscreen();
@@ -30,41 +99,37 @@
                 element.mozRequestFullScreen();
             } else if (element.msRequestFullscreen) {
                 element.msRequestFullscreen();
-            } else if (element.webkitEnterFullscreen) { // Safari
-                element.webkitEnterFullscreen();
             }
 
-            // Intentar métodos específicos para TV
+            // Forzar el tamaño de la ventana para Samsung
             try {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape');
-                }
-            } catch (e) {
-                console.log('Orientation lock no soportado');
-            }
-
-            // Intentar maximizar la ventana (algunos navegadores de TV)
-            try {
-                if (window.screen && window.screen.width) {
-                    window.moveTo(0, 0);
-                    window.resizeTo(screen.width, screen.height);
+                window.moveTo(0, 0);
+                window.resizeTo(screen.width, screen.height);
+                
+                // Ocultar la barra de navegación de Samsung
+                if (window.navigator.standalone !== undefined) {
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
                 }
             } catch (e) {
                 console.log('Resize no soportado');
             }
 
-            // Ocultar la barra de navegación si es posible
+            // Intentar ocultar la barra de navegación de Samsung
             try {
-                if (document.documentElement.style) {
-                    document.documentElement.style.overflow = 'hidden';
-                    document.body.style.overflow = 'hidden';
+                if (window.navigator.standalone !== undefined) {
+                    document.documentElement.style.position = 'fixed';
+                    document.documentElement.style.top = '0';
+                    document.documentElement.style.left = '0';
+                    document.documentElement.style.right = '0';
+                    document.documentElement.style.bottom = '0';
                 }
             } catch (e) {
-                console.log('Overflow control no soportado');
+                console.log('Standalone mode no soportado');
             }
         }
 
-        // Función para verificar si estamos en pantalla completa
+        // Verificar si estamos en pantalla completa
         function isFullscreen() {
             return !!(document.fullscreenElement || 
                      document.webkitFullscreenElement || 
@@ -72,7 +137,7 @@
                      document.msFullscreenElement);
         }
 
-        // Intentar entrar en pantalla completa cada vez que se hace clic
+        // Intentar entrar en pantalla completa cuando se hace clic en cualquier parte
         document.addEventListener('click', function() {
             if (!isFullscreen()) {
                 enterFullscreen();
@@ -86,10 +151,12 @@
             fullscreenButton.classList.add('hidden');
         });
 
-        // Verificar el estado de pantalla completa periódicamente
+        // Verificar el estado de pantalla completa cada segundo
         setInterval(() => {
             if (!isFullscreen()) {
                 fullscreenButton.classList.remove('hidden');
+                // Intentar volver a entrar en pantalla completa
+                setTimeout(enterFullscreen, 1000);
             }
         }, 1000);
 
@@ -113,6 +180,21 @@
                 // Intentar volver a entrar en pantalla completa
                 setTimeout(enterFullscreen, 1000);
             }
+        }
+
+        // Intentar entrar en pantalla completa cuando la orientación cambia
+        window.addEventListener('orientationchange', () => {
+            setTimeout(enterFullscreen, 500);
+        });
+
+        // Forzar el modo de pantalla completa en Samsung
+        if (window.navigator.userAgent.indexOf('Samsung') !== -1) {
+            document.documentElement.style.position = 'fixed';
+            document.documentElement.style.top = '0';
+            document.documentElement.style.left = '0';
+            document.documentElement.style.right = '0';
+            document.documentElement.style.bottom = '0';
+            document.documentElement.style.overflow = 'hidden';
         }
     </script>
 </body>
