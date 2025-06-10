@@ -17,50 +17,103 @@
     <script>
         const fullscreenButton = document.getElementById('fullscreenButton');
         
-        // Función para entrar en pantalla completa
+        // Función mejorada para entrar en pantalla completa
         function enterFullscreen() {
             const element = document.documentElement;
+            
+            // Intentar todos los métodos posibles de pantalla completa
             if (element.requestFullscreen) {
                 element.requestFullscreen();
-            } else if (element.webkitRequestFullscreen) { // Safari
+            } else if (element.webkitRequestFullscreen) {
                 element.webkitRequestFullscreen();
-            } else if (element.msRequestFullscreen) { // IE11
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
                 element.msRequestFullscreen();
+            } else if (element.webkitEnterFullscreen) { // Safari
+                element.webkitEnterFullscreen();
+            }
+
+            // Intentar métodos específicos para TV
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape');
+                }
+            } catch (e) {
+                console.log('Orientation lock no soportado');
+            }
+
+            // Intentar maximizar la ventana (algunos navegadores de TV)
+            try {
+                if (window.screen && window.screen.width) {
+                    window.moveTo(0, 0);
+                    window.resizeTo(screen.width, screen.height);
+                }
+            } catch (e) {
+                console.log('Resize no soportado');
+            }
+
+            // Ocultar la barra de navegación si es posible
+            try {
+                if (document.documentElement.style) {
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
+                }
+            } catch (e) {
+                console.log('Overflow control no soportado');
             }
         }
 
-        // Función para salir de pantalla completa
-        function exitFullscreen() {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) { // Safari
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) { // IE11
-                document.msExitFullscreen();
-            }
+        // Función para verificar si estamos en pantalla completa
+        function isFullscreen() {
+            return !!(document.fullscreenElement || 
+                     document.webkitFullscreenElement || 
+                     document.mozFullScreenElement ||
+                     document.msFullscreenElement);
         }
+
+        // Intentar entrar en pantalla completa cada vez que se hace clic
+        document.addEventListener('click', function() {
+            if (!isFullscreen()) {
+                enterFullscreen();
+                fullscreenButton.classList.add('hidden');
+            }
+        });
 
         // Manejar el clic del botón
         fullscreenButton.addEventListener('click', () => {
             enterFullscreen();
             fullscreenButton.classList.add('hidden');
         });
-        
 
-        // Manejar cambios en el estado de pantalla completa
-        document.addEventListener('fullscreenchange', function() {
-            if (!document.fullscreenElement) {
+        // Verificar el estado de pantalla completa periódicamente
+        setInterval(() => {
+            if (!isFullscreen()) {
                 fullscreenButton.classList.remove('hidden');
             }
+        }, 1000);
+
+        // Intentar entrar en pantalla completa cuando la página carga
+        window.addEventListener('load', () => {
+            // Pequeño retraso para asegurar que la página esté completamente cargada
+            setTimeout(() => {
+                enterFullscreen();
+            }, 1000);
         });
 
-        // Intentar entrar en pantalla completa después de un clic en cualquier parte de la página
-        document.addEventListener('click', function() {
-            if (!document.fullscreenElement) {
-                enterFullscreen();
-                fullscreenButton.classList.add('hidden');
+        // Manejar cambios en el estado de pantalla completa
+        document.addEventListener('fullscreenchange', checkFullscreen);
+        document.addEventListener('webkitfullscreenchange', checkFullscreen);
+        document.addEventListener('mozfullscreenchange', checkFullscreen);
+        document.addEventListener('MSFullscreenChange', checkFullscreen);
+
+        function checkFullscreen() {
+            if (!isFullscreen()) {
+                fullscreenButton.classList.remove('hidden');
+                // Intentar volver a entrar en pantalla completa
+                setTimeout(enterFullscreen, 1000);
             }
-        }, { once: true }); // El evento solo se ejecutará una vez
+        }
     </script>
 </body>
 </html>
