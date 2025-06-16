@@ -10,12 +10,17 @@
             padding: 0;
             box-sizing: border-box;
         }
+        
 
         body {
             width: 100vw;
             height: 100vh;
             overflow: hidden;
             background-color: #000;
+
+
+
+            
             display: flex;
             justify-content: center;
             align-items: center;
@@ -39,6 +44,16 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .image-container img.active {
+            opacity: 1;
         }
 
         #fullscreenButton {
@@ -68,14 +83,57 @@
 </head>
 <body>
     <div class="image-container">
-        <!-- Aquí puedes agregar tus imágenes -->
-        <img src="https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502579/Pantallas%20PDV/COS007_bchpfq.jpg" alt="Imagen">
+        <!-- Las imágenes se agregarán dinámicamente con JavaScript -->
         <button id="fullscreenButton">Haz clic para pantalla completa</button>
     </div>
 
     <script>
+        // Array de URLs de imágenes
+        const images = [
+            "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749505808/Pantallas%20PDV/COS002_hpnzgg.jpg",
+            // Agrega aquí más URLs de imágenes
+            "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502579/Pantallas%20PDV/COS007_bchpfq.jpg",
+            "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749149190/6_nay78c.jpg",
+            "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502580/Pantallas%20PDV/COS004_xk3qcp.jpg",
+            "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749572958/Pantallas%20PDV/COS003_kayfvd.jpg",
+        ];
+
+        let currentImageIndex = 0;
+        const imageContainer = document.querySelector('.image-container');
         const fullscreenButton = document.getElementById('fullscreenButton');
-        
+
+        // Función para cargar las imágenes
+        function loadImages() {
+            images.forEach((src, index) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = `Imagen ${index + 1}`;
+                if (index === 0) {
+                    img.classList.add('active');
+                }
+                imageContainer.insertBefore(img, fullscreenButton);
+            });
+        }
+
+        // Función para cambiar la imagen
+        function changeImage() {
+            const allImages = document.querySelectorAll('.image-container img:not(#fullscreenButton)');
+            allImages[currentImageIndex].classList.remove('active');
+            currentImageIndex = (currentImageIndex + 1) % allImages.length;
+            allImages[currentImageIndex].classList.add('active');
+        }
+
+        // Cargar las imágenes cuando la página se inicie
+        window.addEventListener('load', () => {
+            loadImages();
+            // Iniciar el cambio automático de imágenes
+            setInterval(changeImage, 5000);
+            // Pequeño retraso para asegurar que la página esté completamente cargada
+            setTimeout(() => {
+                enterFullscreen();
+            }, 1000);
+        });
+
         // Función específica para Samsung/Tizen
         function enterFullscreen() {
             const element = document.documentElement;
@@ -159,14 +217,6 @@
                 setTimeout(enterFullscreen, 1000);
             }
         }, 1000);
-
-        // Intentar entrar en pantalla completa cuando la página carga
-        window.addEventListener('load', () => {
-            // Pequeño retraso para asegurar que la página esté completamente cargada
-            setTimeout(() => {
-                enterFullscreen();
-            }, 1000);
-        });
 
         // Manejar cambios en el estado de pantalla completa
         document.addEventListener('fullscreenchange', checkFullscreen);
