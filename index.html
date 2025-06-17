@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reproductor de Imágenes</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
     <style>
         * {
             margin: 0;
@@ -79,6 +81,18 @@
         .hidden {
             display: none !important;
         }
+
+        #cacheStatus {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
@@ -86,8 +100,32 @@
         <!-- Las imágenes se agregarán dinámicamente con JavaScript -->
         <button id="fullscreenButton">Haz clic para pantalla completa</button>
     </div>
+    <div id="cacheStatus">Cargando...</div>
 
     <script>
+        // Registrar el Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado:', registration);
+                        updateCacheStatus('Cache activo');
+                    })
+                    .catch(error => {
+                        console.log('Error al registrar Service Worker:', error);
+                        updateCacheStatus('Cache no disponible');
+                    });
+            });
+        }
+
+        function updateCacheStatus(message) {
+            const status = document.getElementById('cacheStatus');
+            status.textContent = message;
+            setTimeout(() => {
+                status.style.opacity = '0';
+            }, 3000);
+        }
+
         // Array de URLs de imágenes
         const images = [
             "https://res.cloudinary.com/dkldlpgf5/image/upload/v1749505808/Pantallas%20PDV/COS002_hpnzgg.jpg",
@@ -101,6 +139,28 @@
         let currentImageIndex = 0;
         const imageContainer = document.querySelector('.image-container');
         const fullscreenButton = document.getElementById('fullscreenButton');
+
+        // Función para precargar imágenes
+        function preloadImages() {
+            const promises = images.map(src => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => reject(new Error(`Error al cargar: ${src}`));
+                    img.src = src;
+                });
+            });
+
+            Promise.all(promises)
+                .then(() => {
+                    console.log('Todas las imágenes precargadas');
+                    updateCacheStatus('Imágenes listas');
+                })
+                .catch(error => {
+                    console.log('Error al precargar:', error);
+                    updateCacheStatus('Error en precarga');
+                });
+        }
 
         // Función para cargar las imágenes
         function loadImages() {
@@ -125,6 +185,7 @@
 
         // Cargar las imágenes cuando la página se inicie
         window.addEventListener('load', () => {
+            preloadImages();
             loadImages();
             // Iniciar el cambio automático de imágenes
             setInterval(changeImage, 5000);
