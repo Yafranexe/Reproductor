@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reproductor-cache-v1';
+const CACHE_NAME = 'reproductor-cache-v2';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -7,7 +7,9 @@ const urlsToCache = [
     'https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502579/Pantallas%20PDV/COS007_bchpfq.jpg',
     'https://res.cloudinary.com/dkldlpgf5/image/upload/v1749149190/6_nay78c.jpg',
     'https://res.cloudinary.com/dkldlpgf5/image/upload/v1749502580/Pantallas%20PDV/COS004_xk3qcp.jpg',
-    'https://res.cloudinary.com/dkldlpgf5/image/upload/v1749572958/Pantallas%20PDV/COS003_kayfvd.jpg'
+    'https://res.cloudinary.com/dkldlpgf5/image/upload/v1749572958/Pantallas%20PDV/COS003_kayfvd.jpg',
+    'https://res.cloudinary.com/dkldlpgf5/image/upload/v1750210704/COS009_m0fuee.jpg',
+    'https://res.cloudinary.com/dkldlpgf5/image/upload/v1750214976/COS008_fcucwg.jpg',
 ];
 
 // Instalación del Service Worker
@@ -22,6 +24,8 @@ self.addEventListener('install', event => {
                 console.log('Error al cachear:', error);
             })
     );
+    // Forzar la activación inmediata
+    self.skipWaiting();
 });
 
 // Activación del Service Worker
@@ -38,6 +42,76 @@ self.addEventListener('activate', event => {
             );
         })
     );
+    // Tomar control inmediatamente
+    event.waitUntil(self.clients.claim());
+});
+
+// Función para verificar actualizaciones
+async function checkForUpdates() {
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        
+        for (const url of urlsToCache) {
+            try {
+                const response = await fetch(url, { 
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const cachedResponse = await cache.match(url);
+                    if (cachedResponse) {
+                        const cachedDate = new Date(cachedResponse.headers.get('date') || 0);
+                        const serverDate = new Date(response.headers.get('last-modified') || response.headers.get('date') || 0);
+                        
+                        if (serverDate > cachedDate) {
+                            console.log(`Actualizando: ${url}`);
+                            const newResponse = await fetch(url);
+                            await cache.put(url, newResponse);
+                            
+                            // Notificar a la página principal
+                            self.clients.matchAll().then(clients => {
+                                clients.forEach(client => {
+                                    client.postMessage({
+                                        type: 'UPDATE_AVAILABLE',
+                                        url: url
+                                    });
+                                });
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`Error verificando ${url}:`, error);
+            }
+        }
+    } catch (error) {
+        console.log('Error en verificación de actualizaciones:', error);
+    }
+}
+
+// Verificar actualizaciones cada 5 minutos cuando hay conexión
+let updateInterval;
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'START_UPDATE_CHECK') {
+        // Limpiar intervalo anterior si existe
+        if (updateInterval) {
+            clearInterval(updateInterval);
+        }
+        
+        // Verificar inmediatamente
+        checkForUpdates();
+        
+        // Verificar cada 5 minutos
+        updateInterval = setInterval(checkForUpdates, 5 * 60 * 1000);
+    }
+    
+    if (event.data && event.data.type === 'STOP_UPDATE_CHECK') {
+        if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
+        }
+    }
 });
 
 // Interceptar todas las peticiones
@@ -84,21 +158,31 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// Estrategia de caché primero para imágenes
+// Estrategia de caché primero para imágenes con actualización en segundo plano
 self.addEventListener('fetch', event => {
     if (event.request.destination === 'image') {
         event.respondWith(
             caches.match(event.request)
                 .then(response => {
-                    return response || fetch(event.request)
+                    // Devolver la versión cacheada inmediatamente
+                    const fetchPromise = fetch(event.request)
                         .then(response => {
-                            const responseToCache = response.clone();
-                            caches.open(CACHE_NAME)
-                                .then(cache => {
-                                    cache.put(event.request, responseToCache);
-                                });
+                            // Si la respuesta es válida, actualizar el caché
+                            if (response.ok) {
+                                const responseToCache = response.clone();
+                                caches.open(CACHE_NAME)
+                                    .then(cache => {
+                                        cache.put(event.request, responseToCache);
+                                    });
+                            }
                             return response;
+                        })
+                        .catch(() => {
+                            // Si falla la red, no hacer nada
                         });
+
+                    // Devolver la versión cacheada (si existe) o la nueva
+                    return response || fetchPromise;
                 })
         );
     }
